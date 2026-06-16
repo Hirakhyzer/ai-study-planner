@@ -142,19 +142,28 @@ def default_subjects() -> list[dict]:
     ]
 
 
-def subjects_from_editor(rows: list[dict]) -> list[Subject]:
+def editor_records(rows) -> list[dict]:
+    if hasattr(rows, "to_dict"):
+        return rows.to_dict("records")
+    return list(rows)
+
+
+def subjects_from_editor(rows) -> list[Subject]:
     subjects = []
-    for row in rows:
+    for row in editor_records(rows):
         if not str(row.get("name", "")).strip():
             continue
+        syllabus_units = max(1, int(row.get("syllabus_units", 1) or 1))
+        completed_units = max(0, int(row.get("completed_units", 0) or 0))
+        completed_units = min(completed_units, syllabus_units)
         subjects.append(
             Subject(
                 name=str(row["name"]).strip(),
                 exam_date=row["exam_date"],
-                difficulty=str(row["difficulty"]),
-                confidence=str(row["confidence"]),
-                syllabus_units=max(1, int(row["syllabus_units"])),
-                completed_units=max(0, int(row["completed_units"])),
+                difficulty=str(row.get("difficulty", "Medium")),
+                confidence=str(row.get("confidence", "Medium")),
+                syllabus_units=syllabus_units,
+                completed_units=completed_units,
             )
         )
     return subjects
@@ -231,7 +240,7 @@ metric_a, metric_b, metric_c, metric_d = st.columns(4)
 next_exam = min((item.exam_date for item in subjects), default=None)
 total_units = sum(item.syllabus_units for item in subjects)
 completed_units = sum(item.completed_units for item in subjects)
-progress = round((completed_units / total_units) * 100) if total_units else 0
+progress = min(100, round((completed_units / total_units) * 100)) if total_units else 0
 planned_hours = round(sum(item.estimated_hours for item in plan.subject_plans), 1)
 
 cards = [
